@@ -25,16 +25,19 @@ jobs:
             os: macos-15
             targets: universal-apple-darwin
             script: build:mac
+            artifact: dist/*.zip
           - name: Windows (x64)
             os: windows-latest
             targets: x86_64-pc-windows-msvc
             script: build:win
+            artifact: dist/*.exe
           # arm64 Windows is cross-compiled from the x64 runner; Rust supports
           # the target even though the runner cannot execute the result.
           - name: Windows (arm64)
             os: windows-latest
             targets: aarch64-pc-windows-msvc
             script: build:win-arm64
+            artifact: dist/*.exe
 
     steps:
       - uses: actions/checkout@v7
@@ -62,15 +65,21 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
+      # Pure Node, no Electron or webview needed, so it runs on every platform.
+      - run: npm test
+
       - run: npm run ${{ matrix.script }}
 
+      # archive: false uploads the file as-is. Without it GitHub wraps every
+      # artifact in a second zip, so macOS users download a zip containing a
+      # zip — which Archive Utility rejects as "an unsupported format".
+      # Each job here produces exactly one file, which is what this requires.
+      # The artifact is named after the file, so `name` is ignored.
       - uses: actions/upload-artifact@v7
         with:
-          name: portable-${{ matrix.name }}
           if-no-files-found: error
-          path: |
-            dist/*.zip
-            dist/*.exe
+          archive: false
+          path: ${{ matrix.artifact }}
 
   # ---------------------------------------------------------------------------
   # Linux stays on Electron. WebKitGTK's WebEventFactory maps GDK buttons 1/2/3
@@ -92,12 +101,16 @@ jobs:
 
       - run: npm ci
 
+      - run: npm test
+
       - run: npm run build:linux
 
+      # See the note in the tauri job: uploaded unwrapped so the download is
+      # the AppImage itself rather than a zip containing it.
       - uses: actions/upload-artifact@v7
         with:
-          name: portable-Linux
           if-no-files-found: error
+          archive: false
           path: dist/*.AppImage
 
   release:
