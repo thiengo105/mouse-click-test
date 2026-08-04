@@ -3,7 +3,7 @@
  *
  * Tauri is invoked with `--no-bundle` on Windows and `--bundles app` on macOS,
  * because the goal is portable artifacts: a bare exe and a zipped .app, not an
- * MSI or a DMG. Linux is not handled here — it goes through electron-builder.
+ * MSI or a DMG.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -44,7 +44,7 @@ if (process.platform === 'darwin') {
   fs.copyFileSync(exe, out);
   report(out);
 } else {
-  console.error(`${process.platform} builds go through electron-builder, not this script`);
+  console.error(`unsupported platform: ${process.platform} (macOS and Windows only)`);
   process.exit(1);
 }
 

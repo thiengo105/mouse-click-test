@@ -9,8 +9,9 @@ on:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # macOS and Windows ship the Tauri shell. The Rust binary is tiny and the
-  # webview comes from the OS, so artifacts are single-digit megabytes.
+  # The Rust binary is tiny and the webview comes from the OS, so artifacts are
+  # single-digit megabytes. Linux is not built: WebKitGTK cannot report the side
+  # mouse buttons, so a Linux build could not do this app's core job.
   # ---------------------------------------------------------------------------
   tauri:
     name: ${{ matrix.name }}
@@ -20,7 +21,7 @@ jobs:
       matrix:
         include:
           # One universal binary covers Intel and Apple Silicon in a single
-          # download, which a Rust binary can afford and Electron could not.
+          # download, which a Rust binary can comfortably afford.
           - name: macOS (universal)
             os: macos-15
             targets: universal-apple-darwin
@@ -59,13 +60,9 @@ jobs:
           workspaces: src-tauri
           key: ${{ matrix.targets }}
 
-      # electron is a devDependency but these jobs never use it, so skip the
-      # ~100 MB binary download.
       - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
-      # Pure Node, no Electron or webview needed, so it runs on every platform.
+      # Pure Node, no webview needed, so it runs on every platform.
       - run: npm test
 
       - run: npm run ${{ matrix.script }}
@@ -81,40 +78,8 @@ jobs:
           archive: false
           path: ${{ matrix.artifact }}
 
-  # ---------------------------------------------------------------------------
-  # Linux stays on Electron. WebKitGTK's WebEventFactory maps GDK buttons 1/2/3
-  # only, so a Tauri build could never report the back/forward buttons that this
-  # app exists to test.
-  # ---------------------------------------------------------------------------
-  electron-linux:
-    name: Linux (AppImage x64)
-    # ubuntu-24.04 sets the AppImage glibc floor at 2.39. Distros older than
-    # Ubuntu 24.04 / Debian 13 will not run the result.
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm test
-
-      - run: npm run build:linux
-
-      # See the note in the tauri job: uploaded unwrapped so the download is
-      # the AppImage itself rather than a zip containing it.
-      - uses: actions/upload-artifact@v7
-        with:
-          if-no-files-found: error
-          archive: false
-          path: dist/*.AppImage
-
   release:
-    needs: [tauri, electron-linux]
+    needs: [tauri]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:

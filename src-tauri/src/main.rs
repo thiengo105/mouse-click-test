@@ -3,8 +3,8 @@
 
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-/// Report platform names using the same vocabulary as the Electron shell, so
-/// the renderer displays identically no matter which shell it is running in.
+/// Report platform names using Node's vocabulary (darwin/win32, arm64/x64),
+/// which is what the renderer's header expects.
 fn os_name() -> &'static str {
     match std::env::consts::OS {
         "macos" => "darwin",
@@ -21,8 +21,7 @@ fn arch_name() -> &'static str {
     }
 }
 
-/// Stands in for the Electron preload: exposes the same frozen `window.platform`
-/// object before any page script runs.
+/// Exposes a frozen `window.platform` object before any page script runs.
 fn platform_script() -> String {
     format!(
         r#"Object.defineProperty(window, 'platform', {{

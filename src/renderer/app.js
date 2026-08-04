@@ -132,8 +132,8 @@ for (const [key, value] of Object.entries(DEFAULT_THRESHOLDS)) {
 
 /* ----------------------------------------------------------------- render */
 
-// Supplied by the Electron preload or the Tauri initialization script; the
-// renderer itself is shell-agnostic.
+// Supplied by the Tauri initialization script in src-tauri/src/main.rs; the
+// renderer itself makes no assumptions about its host.
 const platform = window.platform || {};
 $('platform-info').textContent = [
   `${platform.os || '?'} ${platform.arch || ''}`.trim(),
