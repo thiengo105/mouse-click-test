@@ -132,8 +132,15 @@ for (const [key, value] of Object.entries(DEFAULT_THRESHOLDS)) {
 
 /* ----------------------------------------------------------------- render */
 
+// Supplied by the Electron preload or the Tauri initialization script; the
+// renderer itself is shell-agnostic.
 const platform = window.platform || {};
-$('platform-info').textContent = `${platform.os || '?'} ${platform.arch || ''}`.trim();
+$('platform-info').textContent = [
+  `${platform.os || '?'} ${platform.arch || ''}`.trim(),
+  platform.runtime,
+]
+  .filter(Boolean)
+  .join(' · ');
 
 const fmt = (n, digits = 0) =>
   n === 0 ? '0' : n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });

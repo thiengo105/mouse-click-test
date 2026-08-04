@@ -1,3 +1,7 @@
+# Electron now covers Linux only. macOS and Windows ship the Tauri shell in
+# src-tauri, which is ~40x smaller. Linux stays on Electron because WebKitGTK
+# never maps the side mouse buttons: WebEventFactory.cpp translates GDK buttons
+# 1/2/3 and nothing else, so back/forward would be undetectable there.
 appId: dev.doltech.mouseclicktest
 productName: Mouse Click Test
 copyright: Copyright © 2026 Thien Ngo
@@ -7,39 +11,14 @@ directories:
   buildResources: build
 
 files:
-  - src/**/*
+  - src/main/**/*
+  - src/renderer/**/*
   - package.json
-
-# Electron ships prebuilt binaries per architecture, so every target below is a
-# repack rather than a compile. That is what lets one macOS runner emit both
-# Intel and Apple Silicon, and one Windows runner emit both x64 and arm64.
-mac:
-  category: public.app-category.utilities
-  darkModeSupport: true
-  hardenedRuntime: true
-  gatekeeperAssess: false
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  # Zip only, no DMG: a .app bundle is already portable, the zip just moves it.
-  target:
-    - target: zip
-      arch: [x64, arm64]
-  artifactName: MouseClickTest-${version}-mac-${arch}.${ext}
-
-win:
-  # Single self-contained exe that runs without installing.
-  target:
-    - target: portable
-      arch: [x64, arm64]
-
-portable:
-  artifactName: MouseClickTest-${version}-win-${arch}.${ext}
-  # Reuse one extraction directory instead of a fresh temp dir per launch.
-  unpackDirName: MouseClickTest
 
 linux:
   category: Utility
   synopsis: Mouse button and scroll wheel diagnostic tool
+  icon: build/appicon.png
   # AppImage is already a portable single file; no install step exists.
   target:
     - target: AppImage

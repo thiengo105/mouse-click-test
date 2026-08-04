@@ -12,8 +12,22 @@ statistics and detected faults.
 npm install
 ```
 
+macOS and Windows run the Tauri shell (needs a Rust toolchain):
+
 ```bash
-npm start
+npm run dev
+```
+
+Linux runs the Electron shell:
+
+```bash
+npm run dev:electron
+```
+
+Run the detector's unit tests with:
+
+```bash
+npm test
 ```
 
 ## What it detects
@@ -60,48 +74,87 @@ Events are captured **while the app window is focused**. This needs no
 accessibility permissions and no native modules, so behaviour is identical on all
 five targets. It does mean the app cannot see clicks made in other applications.
 
+## Two shells, on purpose
+
+macOS and Windows use **Tauri**; Linux uses **Electron**. The renderer is byte
+for byte the same in both — `src/renderer/` uses no shell APIs beyond a
+`window.platform` object, which Electron supplies from a preload script and
+Tauri from an initialization script.
+
+The split exists because of one line in WebKitGTK. `WebEventFactory.cpp`
+translates GDK mouse buttons like this:
+
+```cpp
+if (eventButton == 1)      button = Left;
+else if (eventButton == 2) button = Middle;
+else if (eventButton == 3) button = Right;
+```
+
+GDK reports side buttons as 8 and 9. They match no branch, so the button stays
+`None` and the event never reaches the DOM. On WebKitGTK the back and forward
+buttons are **undetectable from JavaScript** — which would gut an app whose
+purpose is testing mouse buttons. There is no workaround in page code.
+
+macOS has no such problem: WKWebView's `buttonFromButtonNumber` maps button
+numbers 3 and 4 to `Back` and `Forward`. Windows WebView2 is Chromium, so it
+behaves exactly like Electron.
+
+So Linux keeps Electron's bundled Chromium and stays large, while the two
+platforms that *can* use a system webview get artifacts around 1% of the size.
+
+| Platform | Shell | Webview | Side buttons |
+| --- | --- | --- | --- |
+| macOS | Tauri | WKWebView | Yes |
+| Windows | Tauri | WebView2 (Chromium) | Yes |
+| Linux | Electron | Bundled Chromium | Yes |
+
 ## Building
 
 Every artifact is **portable** — there is no installer for any platform. Nothing
 writes to Program Files, `/Applications`, the registry or a package database.
 
-Requires no cross-compiler: Electron ships prebuilt binaries per architecture,
-so every target below is a repack.
+The Tauri targets need a Rust toolchain; the Linux target needs only Node.
 
 ```bash
-npm run dist:mac
+npm run build:mac
 ```
 
 ```bash
-npm run dist:win
+npm run build:win
 ```
 
 ```bash
-npm run dist:linux
+npm run build:win-arm64
+```
+
+```bash
+npm run build:linux
 ```
 
 Output lands in `dist/`.
 
-| Target | Artifact | How it runs |
-| --- | --- | --- |
-| macOS Intel | `MouseClickTest-1.0.0-mac-x64.zip` | Unzip, double-click the `.app` |
-| macOS Apple Silicon | `MouseClickTest-1.0.0-mac-arm64.zip` | Unzip, double-click the `.app` |
-| Windows x86_64 | `MouseClickTest-1.0.0-win-x64.exe` | Double-click, no install |
-| Windows arm64 | `MouseClickTest-1.0.0-win-arm64.exe` | Double-click, no install |
-| Linux | `MouseClickTest-1.0.0-linux-x86_64.AppImage` | `chmod +x`, then run |
+| Target | Artifact | Size | How it runs |
+| --- | --- | --- | --- |
+| macOS universal | `MouseClickTest-1.0.0-mac-universal.zip` | ~2 MB | Unzip, double-click the `.app` |
+| Windows x86_64 | `MouseClickTest-1.0.0-win-x64.exe` | ~5 MB | Double-click, no install |
+| Windows arm64 | `MouseClickTest-1.0.0-win-arm64.exe` | ~5 MB | Double-click, no install |
+| Linux | `MouseClickTest-1.0.0-linux-x86_64.AppImage` | ~100 MB | `chmod +x`, then run |
 
 You cannot build macOS artifacts from Windows or vice versa, so the full matrix
 comes from CI.
 
 ### Notes per platform
 
-**macOS** — a `.app` bundle is already self-contained, so the zip is the portable
-format; there is no DMG. Run it from anywhere, including a USB stick.
+**macOS** — one *universal* binary covers Intel and Apple Silicon in a single
+download, which is affordable at this size and was not with Electron. A `.app`
+bundle is already self-contained, so the zip is the portable format; there is no
+DMG. Run it from anywhere, including a USB stick.
 
-**Windows** — electron-builder's `portable` target is a single self-extracting
-exe. `unpackDirName: MouseClickTest` makes it reuse one extraction directory
-rather than a fresh temp folder per launch, so startup after the first run is
-fast.
+**Windows** — built with `--no-bundle`, so the artifact is Tauri's raw exe rather
+than an MSI or NSIS package. It needs the **Microsoft Edge WebView2 Runtime**,
+which is preinstalled on Windows 11 and on Windows 10 via Edge updates. On a
+machine without it the app will not start; Tauri can embed a fixed WebView2
+version instead, but that adds back over 100 MB and defeats the point.
 
 **Linux** — AppImage is portable by definition; there was never an install step.
 It needs FUSE 2 on the host, which most desktop distros ship. If it refuses to
@@ -110,20 +163,20 @@ bypasses FUSE.
 
 ### CI
 
-`.github/workflows/build.yml` builds all five artifacts on every push to `main`
-and uploads them as workflow artifacts. Three runners cover the matrix:
+`.github/workflows/build.yml` builds all four artifacts on every push to `main`
+and uploads them as workflow artifacts:
 
-- `macos-14` → both macOS architectures
-- `windows-latest` → both Windows architectures
-- `ubuntu-22.04` → the AppImage (built on an older glibc for wider compatibility)
+- `macos-15` → universal Tauri build (both Darwin triples, lipo'd)
+- `windows-latest` → Tauri x64, plus arm64 cross-compiled from the same runner
+- `ubuntu-24.04` → the Electron AppImage
 
 Pushing a `v*` tag additionally publishes a GitHub Release with all artifacts
 attached.
 
 ### Code signing
 
-CI builds are **unsigned** — `CSC_IDENTITY_AUTO_DISCOVERY: false` skips it.
-Unsigned builds trigger Gatekeeper on macOS and SmartScreen on Windows.
+CI builds are **unsigned**. That trips Gatekeeper on macOS and SmartScreen on
+Windows.
 
 A zip downloaded from a browser carries the quarantine attribute, so macOS will
 refuse the first launch. Either right-click → Open, or clear it:
@@ -132,23 +185,35 @@ refuse the first launch. Either right-click → Open, or clear it:
 xattr -dr com.apple.quarantine "Mouse Click Test.app"
 ```
 
-To sign, remove that env var and add the relevant repository secrets:
+To sign, add the relevant repository secrets:
 
-- **macOS**: `CSC_LINK` (base64 .p12), `CSC_KEY_PASSWORD`, plus `APPLE_ID`,
-  `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` for notarization.
-- **Windows**: `CSC_LINK` and `CSC_KEY_PASSWORD`, or an Azure Trusted Signing
-  configuration.
+- **macOS** (Tauri): `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
+  `APPLE_SIGNING_IDENTITY`, plus `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID`
+  for notarization.
+- **Windows** (Tauri): configure `bundle.windows.certificateThumbprint` in
+  `tauri.conf.json`, or use Azure Trusted Signing.
+- **Linux** (electron-builder): AppImages are not signed; nothing to configure.
 
 ## Layout
 
 ```
-src/main/main.js        Electron entry: window, navigation lockdown
-src/main/preload.js     Exposes platform info over the context bridge
-src/renderer/detector.js  Detection engine — pure logic, no DOM
+src/renderer/detector.js  Detection engine — pure logic, no DOM, no shell APIs
 src/renderer/app.js       Event capture and rendering
 src/renderer/index.html   Structure
 src/renderer/styles.css   Styling
+
+src-tauri/src/main.rs     Tauri shell (macOS, Windows): window + platform script
+src-tauri/tauri.conf.json Tauri config; frontendDist points at src/renderer
+src/main/main.js          Electron shell (Linux): window, navigation lockdown
+src/main/preload.js       Electron's equivalent of the platform script
+
+tools/detector.test.mjs   Unit tests for the detection engine
+tools/make-icon.mjs       Generates build/appicon.png from scratch
+tools/package.mjs         Collects Tauri output into dist/ under a stable name
 ```
 
-`detector.js` holds no DOM references, which is what makes threshold replay and
-headless testing possible.
+`detector.js` holds no DOM references, which is what makes threshold replay,
+headless testing, and running under two different shells possible.
+
+The icon is generated rather than committed as an opaque binary. To change it,
+edit `tools/make-icon.mjs` and run `npm run icons`.

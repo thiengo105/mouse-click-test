@@ -1,0 +1,21 @@
+[package]
+name = "mouse-click-test"
+version = "1.0.0"
+description = "Mouse button and scroll wheel diagnostic tool"
+authors = ["Thien Ngo"]
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+# The whole point of the Tauri shell is a small artifact, so optimise for size.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

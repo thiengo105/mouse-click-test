@@ -7,14 +7,17 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac --x64 --arm64",
-    "dist:win": "electron-builder --win --x64 --arm64",
-    "dist:linux": "electron-builder --linux --x64"
+    "dev": "tauri dev",
+    "dev:electron": "electron .",
+    "build:mac": "tauri build --bundles app --target universal-apple-darwin && node tools/package.mjs universal-apple-darwin",
+    "build:win": "tauri build --no-bundle --target x86_64-pc-windows-msvc && node tools/package.mjs x86_64-pc-windows-msvc",
+    "build:win-arm64": "tauri build --no-bundle --target aarch64-pc-windows-msvc && node tools/package.mjs aarch64-pc-windows-msvc",
+    "build:linux": "electron-builder --linux --x64",
+    "icons": "node tools/make-icon.mjs build/appicon.png && tauri icon build/appicon.png -o src-tauri/icons",
+    "test": "node tools/detector.test.mjs"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   }

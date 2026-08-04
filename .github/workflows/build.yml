@@ -8,27 +8,80 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  # ---------------------------------------------------------------------------
+  # macOS and Windows ship the Tauri shell. The Rust binary is tiny and the
+  # webview comes from the OS, so artifacts are single-digit megabytes.
+  # ---------------------------------------------------------------------------
+  tauri:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # One macOS runner emits both Intel and Apple Silicon builds: Electron
-          # binaries are downloaded prebuilt, so no cross-compiler is involved.
-          - name: macOS (x64 + arm64)
+          # One universal binary covers Intel and Apple Silicon in a single
+          # download, which a Rust binary can afford and Electron could not.
+          - name: macOS (universal)
             os: macos-15
-            script: dist:mac
-          - name: Windows (x64 + arm64)
+            targets: universal-apple-darwin
+            script: build:mac
+          - name: Windows (x64)
             os: windows-latest
-            script: dist:win
-          # ubuntu-24.04 sets the AppImage glibc floor at 2.39. Distros older
-          # than Ubuntu 24.04 / Debian 13 will not run the result.
-          - name: Linux (AppImage x64)
-            os: ubuntu-24.04
-            script: dist:linux
+            targets: x86_64-pc-windows-msvc
+            script: build:win
+          # arm64 Windows is cross-compiled from the x64 runner; Rust supports
+          # the target even though the runner cannot execute the result.
+          - name: Windows (arm64)
+            os: windows-latest
+            targets: aarch64-pc-windows-msvc
+            script: build:win-arm64
 
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # universal-apple-darwin is a lipo of the two Darwin triples, so both
+          # must be installed rather than the pseudo-target itself.
+          targets: ${{ matrix.targets == 'universal-apple-darwin' && 'x86_64-apple-darwin,aarch64-apple-darwin' || matrix.targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.targets }}
+
+      # electron is a devDependency but these jobs never use it, so skip the
+      # ~100 MB binary download.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+      - run: npm run ${{ matrix.script }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: portable-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            dist/*.zip
+            dist/*.exe
+
+  # ---------------------------------------------------------------------------
+  # Linux stays on Electron. WebKitGTK's WebEventFactory maps GDK buttons 1/2/3
+  # only, so a Tauri build could never report the back/forward buttons that this
+  # app exists to test.
+  # ---------------------------------------------------------------------------
+  electron-linux:
+    name: Linux (AppImage x64)
+    # ubuntu-24.04 sets the AppImage glibc floor at 2.39. Distros older than
+    # Ubuntu 24.04 / Debian 13 will not run the result.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -39,25 +92,16 @@ jobs:
 
       - run: npm ci
 
-      - name: Build portable artifacts
-        run: npm run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No Developer ID certificate in CI, so skip signing entirely.
-          # Remove this and add CSC_LINK / CSC_KEY_PASSWORD to sign + notarize.
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - run: npm run build:linux
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.os }}-portable
+          name: portable-Linux
           if-no-files-found: error
-          path: |
-            dist/*.zip
-            dist/*.exe
-            dist/*.AppImage
+          path: dist/*.AppImage
 
   release:
-    needs: build
+    needs: [tauri, electron-linux]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
