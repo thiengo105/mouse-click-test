@@ -133,12 +133,18 @@ npm run build:linux
 
 Output lands in `dist/`.
 
-| Target | Artifact | Size | How it runs |
+Sizes below are what CI actually uploaded, not estimates. The Windows figures
+are the artifact zips; GitHub re-compresses the exe on upload.
+
+| Target | Artifact | CI artifact | How it runs |
 | --- | --- | --- | --- |
-| macOS universal | `MouseClickTest-1.0.0-mac-universal.zip` | ~2 MB | Unzip, double-click the `.app` |
-| Windows x86_64 | `MouseClickTest-1.0.0-win-x64.exe` | ~5 MB | Double-click, no install |
-| Windows arm64 | `MouseClickTest-1.0.0-win-arm64.exe` | ~5 MB | Double-click, no install |
-| Linux | `MouseClickTest-1.0.0-linux-x86_64.AppImage` | ~100 MB | `chmod +x`, then run |
+| macOS universal | `MouseClickTest-1.0.0-mac-universal.zip` | 2.3 MB | Unzip, double-click the `.app` |
+| Windows x86_64 | `MouseClickTest-1.0.0-win-x64.exe` | 1.1 MB | Double-click, no install |
+| Windows arm64 | `MouseClickTest-1.0.0-win-arm64.exe` | 1.0 MB | Double-click, no install |
+| Linux | `MouseClickTest-1.0.0-linux-x86_64.AppImage` | 103 MB | `chmod +x`, then run |
+
+Linux is now ~95% of the total download weight for the project. That is the
+price of keeping the side buttons working there.
 
 You cannot build macOS artifacts from Windows or vice versa, so the full matrix
 comes from CI.
