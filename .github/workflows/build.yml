@@ -85,10 +85,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      # skip-decompress is required because the artifacts are uploaded
+      # unwrapped. Without it the macOS artifact — which *is* a .zip — gets
+      # extracted into a .app directory, so the zip never reaches the release
+      # while the .exe artifacts, not being archives, pass through untouched.
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
+          skip-decompress: true
 
       - uses: softprops/action-gh-release@v3
         with:
