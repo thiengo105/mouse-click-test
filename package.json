@@ -1,0 +1,21 @@
+{
+  "name": "mouse-click-test",
+  "version": "1.0.0",
+  "description": "Cross-platform mouse button and scroll wheel diagnostic tool",
+  "main": "src/main/main.js",
+  "author": "Thien Ngo",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac --x64 --arm64",
+    "dist:win": "electron-builder --win --x64 --arm64",
+    "dist:linux": "electron-builder --linux --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

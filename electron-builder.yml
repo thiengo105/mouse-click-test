@@ -1,0 +1,53 @@
+appId: dev.doltech.mouseclicktest
+productName: Mouse Click Test
+copyright: Copyright © 2026 Thien Ngo
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - src/**/*
+  - package.json
+
+# Electron ships prebuilt binaries per architecture, so every target below is a
+# repack rather than a compile. That is what lets one macOS runner emit both
+# Intel and Apple Silicon, and one Windows runner emit both x64 and arm64.
+mac:
+  category: public.app-category.utilities
+  darkModeSupport: true
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+
+linux:
+  category: Utility
+  synopsis: Mouse button and scroll wheel diagnostic tool
+  target:
+    - target: AppImage
+      arch: [x64]
+
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}

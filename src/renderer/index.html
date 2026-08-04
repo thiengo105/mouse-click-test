@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+    />
+    <title>Mouse Click Test</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <h1>Mouse Click Test</h1>
+      <div class="titlebar-meta">
+        <span id="session-timer">00:00</span>
+        <span class="dot">&middot;</span>
+        <span id="event-count">0 events</span>
+        <span class="dot">&middot;</span>
+        <span id="platform-info"></span>
+      </div>
+      <div class="titlebar-actions">
+        <button id="btn-reset" type="button" class="ghost">Reset</button>
+        <button id="btn-export" type="button" class="ghost">Export JSON</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ---------------------------------------------------------------- -->
+      <section id="test-area" class="pane pane-test" tabindex="0">
+        <p class="hint">
+          Click anywhere in this panel. Use every button and scroll both ways.
+        </p>
+
+        <div class="mouse-wrap">
+          <svg
+            id="mouse"
+            viewBox="0 0 220 360"
+            role="img"
+            aria-label="Mouse diagram"
+          >
+            <!-- body -->
+            <path
+              class="body"
+              d="M20 130 C20 48 68 10 110 10 C152 10 200 48 200 130
+                 L200 258 C200 316 160 350 110 350 C60 350 20 316 20 258 Z"
+            />
+
+            <!-- primary buttons -->
+            <path
+              id="zone-0"
+              class="zone"
+              d="M24 128 C24 54 68 16 104 16 L104 152 L24 152 Z"
+            />
+            <path
+              id="zone-2"
+              class="zone"
+              d="M196 128 C196 54 152 16 116 16 L116 152 L196 152 Z"
+            />
+
+            <!-- wheel -->
+            <rect id="zone-1" class="zone wheel" x="96" y="34" width="28" height="62" rx="14" />
+            <path id="scroll-up" class="scroll-arrow" d="M110 20 l9 12 h-18 Z" />
+            <path id="scroll-down" class="scroll-arrow" d="M110 112 l9 -12 h-18 Z" />
+
+            <!-- side buttons: forward sits closer to the front of the mouse -->
+            <rect id="zone-4" class="zone side" x="6" y="168" width="30" height="34" rx="9" />
+            <rect id="zone-3" class="zone side" x="6" y="210" width="30" height="34" rx="9" />
+
+            <text class="glyph" x="21" y="190">&#8250;</text>
+            <text class="glyph" x="21" y="232">&#8249;</text>
+
+            <line class="seam" x1="24" y1="152" x2="196" y2="152" />
+          </svg>
+
+          <div class="legend">
+            <div class="legend-row"><span class="k">Left</span><span id="c-0" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Middle</span><span id="c-1" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Right</span><span id="c-2" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Back</span><span id="c-3" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Forward</span><span id="c-4" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Wheel &#8593;</span><span id="c-wu" class="v">0</span></div>
+            <div class="legend-row"><span class="k">Wheel &#8595;</span><span id="c-wd" class="v">0</span></div>
+          </div>
+        </div>
+
+        <div id="coverage" class="coverage"></div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="pane pane-stats">
+        <div class="verdict" id="verdict">
+          <span class="verdict-badge" id="verdict-badge">No data</span>
+          <span class="verdict-text" id="verdict-text">Start clicking to collect samples.</span>
+        </div>
+
+        <h2>Detected issues</h2>
+        <div id="issues" class="issues"></div>
+
+        <h2>Buttons</h2>
+        <div class="table-scroll">
+          <table id="button-table">
+            <thead>
+              <tr>
+                <th>Button</th>
+                <th title="Completed press + release cycles">Clicks</th>
+                <th title="Presses within the chatter window of the previous release">Chatter</th>
+                <th title="Press/release cycles shorter than the micro-click threshold">Micro</th>
+                <th title="Releases with no matching press">Orphan</th>
+                <th title="Average hold time">Hold avg</th>
+                <th title="Shortest gap between a release and the next press">Min gap</th>
+                <th title="Recent clicks per second">CPS</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h2>Scroll wheel</h2>
+        <div id="wheel-stats" class="grid"></div>
+
+        <details class="settings">
+          <summary>Detection thresholds</summary>
+          <div class="settings-grid">
+            <label>Chatter window <input id="th-chatterMs" type="number" min="1" max="500" step="1" /> ms</label>
+            <label>Micro-click <input id="th-microClickMs" type="number" min="1" max="200" step="1" /> ms</label>
+            <label>Stuck after <input id="th-stuckMs" type="number" min="200" max="60000" step="100" /> ms</label>
+            <label>Scroll reversal <input id="th-scrollReversalMs" type="number" min="1" max="500" step="1" /> ms</label>
+            <label>Scroll spike <input id="th-scrollJumpFactor" type="number" min="2" max="20" step="1" /> &times; step</label>
+          </div>
+          <p class="settings-note">Changing a threshold replays the recorded session with the new value.</p>
+        </details>
+
+        <h2>Event log</h2>
+        <div id="log" class="log"></div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
