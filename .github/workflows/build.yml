@@ -15,22 +15,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # One macOS runner emits both Intel and Apple Silicon DMGs: Electron
+          # One macOS runner emits both Intel and Apple Silicon builds: Electron
           # binaries are downloaded prebuilt, so no cross-compiler is involved.
           - name: macOS (x64 + arm64)
-            os: macos-14
+            os: macos-15
             script: dist:mac
           - name: Windows (x64 + arm64)
             os: windows-latest
             script: dist:win
+          # ubuntu-24.04 sets the AppImage glibc floor at 2.39. Distros older
+          # than Ubuntu 24.04 / Debian 13 will not run the result.
           - name: Linux (AppImage x64)
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             script: dist:linux
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -45,7 +47,7 @@ jobs:
           # Remove this and add CSC_LINK / CSC_KEY_PASSWORD to sign + notarize.
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-portable
           if-no-files-found: error
@@ -57,16 +59,16 @@ jobs:
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*
           generate_release_notes: true
