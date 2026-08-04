@@ -20,34 +20,30 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # Zip only, no DMG: a .app bundle is already portable, the zip just moves it.
   target:
-    - target: dmg
-      arch: [x64, arm64]
     - target: zip
       arch: [x64, arm64]
-
-dmg:
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: MouseClickTest-${version}-mac-${arch}.${ext}
 
 win:
+  # Single self-contained exe that runs without installing.
   target:
-    - target: nsis
-      arch: [x64, arm64]
     - target: portable
-      arch: [x64]
+      arch: [x64, arm64]
 
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+portable:
+  artifactName: MouseClickTest-${version}-win-${arch}.${ext}
+  # Reuse one extraction directory instead of a fresh temp dir per launch.
+  unpackDirName: MouseClickTest
 
 linux:
   category: Utility
   synopsis: Mouse button and scroll wheel diagnostic tool
+  # AppImage is already a portable single file; no install step exists.
   target:
     - target: AppImage
       arch: [x64]
 
 appImage:
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: MouseClickTest-${version}-linux-${arch}.${ext}

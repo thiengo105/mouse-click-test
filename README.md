@@ -60,7 +60,10 @@ Events are captured **while the app window is focused**. This needs no
 accessibility permissions and no native modules, so behaviour is identical on all
 five targets. It does mean the app cannot see clicks made in other applications.
 
-## Building installers
+## Building
+
+Every artifact is **portable** — there is no installer for any platform. Nothing
+writes to Program Files, `/Applications`, the registry or a package database.
 
 Requires no cross-compiler: Electron ships prebuilt binaries per architecture,
 so every target below is a repack.
@@ -79,16 +82,31 @@ npm run dist:linux
 
 Output lands in `dist/`.
 
-| Target | Artifact |
-| --- | --- |
-| macOS Intel | `Mouse Click Test-1.0.0-x64.dmg` + zip |
-| macOS Apple Silicon | `Mouse Click Test-1.0.0-arm64.dmg` + zip |
-| Windows x86_64 | `Mouse Click Test-1.0.0-x64-setup.exe` + portable exe |
-| Windows arm64 | `Mouse Click Test-1.0.0-arm64-setup.exe` |
-| Linux | `Mouse Click Test-1.0.0-x86_64.AppImage` |
+| Target | Artifact | How it runs |
+| --- | --- | --- |
+| macOS Intel | `MouseClickTest-1.0.0-mac-x64.zip` | Unzip, double-click the `.app` |
+| macOS Apple Silicon | `MouseClickTest-1.0.0-mac-arm64.zip` | Unzip, double-click the `.app` |
+| Windows x86_64 | `MouseClickTest-1.0.0-win-x64.exe` | Double-click, no install |
+| Windows arm64 | `MouseClickTest-1.0.0-win-arm64.exe` | Double-click, no install |
+| Linux | `MouseClickTest-1.0.0-linux-x86_64.AppImage` | `chmod +x`, then run |
 
 You cannot build macOS artifacts from Windows or vice versa, so the full matrix
 comes from CI.
+
+### Notes per platform
+
+**macOS** — a `.app` bundle is already self-contained, so the zip is the portable
+format; there is no DMG. Run it from anywhere, including a USB stick.
+
+**Windows** — electron-builder's `portable` target is a single self-extracting
+exe. `unpackDirName: MouseClickTest` makes it reuse one extraction directory
+rather than a fresh temp folder per launch, so startup after the first run is
+fast.
+
+**Linux** — AppImage is portable by definition; there was never an install step.
+It needs FUSE 2 on the host, which most desktop distros ship. If it refuses to
+start, `./MouseClickTest-1.0.0-linux-x86_64.AppImage --appimage-extract-and-run`
+bypasses FUSE.
 
 ### CI
 
@@ -105,8 +123,14 @@ attached.
 ### Code signing
 
 CI builds are **unsigned** — `CSC_IDENTITY_AUTO_DISCOVERY: false` skips it.
-Unsigned builds trigger Gatekeeper on macOS (right-click → Open, or
-`xattr -d com.apple.quarantine`) and SmartScreen on Windows.
+Unsigned builds trigger Gatekeeper on macOS and SmartScreen on Windows.
+
+A zip downloaded from a browser carries the quarantine attribute, so macOS will
+refuse the first launch. Either right-click → Open, or clear it:
+
+```bash
+xattr -dr com.apple.quarantine "Mouse Click Test.app"
+```
 
 To sign, remove that env var and add the relevant repository secrets:
 
